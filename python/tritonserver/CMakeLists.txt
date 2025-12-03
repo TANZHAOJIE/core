@@ -37,30 +37,70 @@ file(COPY _c/__init__.py DESTINATION ./_c/.)
 file(GLOB PYTHON_MODULE_FILES ./_api/*.py)
 file(COPY ${PYTHON_MODULE_FILES} DESTINATION ./_api/.)
 
-include(FetchContent)
-FetchContent_Declare(
-  pybind11
-  GIT_REPOSITORY "https://github.com/pybind/pybind11"
-  # COMMIT ID for v2.12.0
-  GIT_TAG "3e9dfa2866941655c56877882565e7577de6fc7b"
-  GIT_SHALLOW ON
-)
+# include(FetchContent)
+# FetchContent_Declare(
+#   pybind11
+#   GIT_REPOSITORY "https://github.com/pybind/pybind11"
+#   # COMMIT ID for v2.12.0
+#   GIT_TAG "3e9dfa2866941655c56877882565e7577de6fc7b"
+#   GIT_SHALLOW ON
+# )
 
-# 获取源码到本地目录（不会自动 add_subdirectory）
-FetchContent_MakeAvailable(pybind11)
-# 在这里引用你放在工程中的补丁文件（例如：cmake/patches/pybind11-fix.patch）
-set(PYBIND11_PATCH "${CMAKE_SOURCE_DIR}/cmake/patches/pybind11-fix.patch")
-# 应用补丁（使用 git apply），工作目录为被 populate 的源码目录
-execute_process(
-  COMMAND ${GIT_EXECUTABLE} apply "${PYBIND11_PATCH}"
-  WORKING_DIRECTORY ${pybind11_SOURCE_DIR}
-  RESULT_VARIABLE _git_apply_result
-  OUTPUT_VARIABLE _git_apply_out
-  ERROR_VARIABLE _git_apply_err
-)
-if(NOT _git_apply_result EQUAL 0)
-  message(FATAL_ERROR "Failed to apply pybind11 patch: ${_git_apply_err}")
+# FetchContent_MakeAvailable(pybind11)
+# ...existing code...
+# 替换原有 FetchContent_Declare/FetchContent_MakeAvailable + 直接 apply 补丁 的逻辑
+find_program(GIT_EXECUTABLE git)
+if(NOT GIT_EXECUTABLE)
+  message(FATAL_ERROR "git not found; required to fetch and patch pybind11")
 endif()
+
+set(PYBIND11_GIT "https://github.com/pybind/pybind11")
+set(PYBIND11_COMMIT "3e9dfa2866941655c56877882565e7577de6fc7b") # 固定提交
+set(PYBIND11_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/pybind11-src")
+set(PYBIND11_BUILD_DIR "${CMAKE_BINARY_DIR}/_deps/pybind11-build")
+set(PYBIND11_PATCH "${CMAKE_SOURCE_DIR}/cmake/patches/pybind11-fix.patch")
+
+# 如果源码不存在则克隆并检出指定提交（depth 可选）
+if(NOT EXISTS "${PYBIND11_SRC_DIR}/.git")
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} clone ${PYBIND11_GIT} "${PYBIND11_SRC_DIR}"
+    RESULT_VARIABLE _git_clone_res
+    OUTPUT_VARIABLE _git_clone_out
+    ERROR_VARIABLE _git_clone_err
+  )
+  if(NOT _git_clone_res EQUAL 0)
+    message(FATAL_ERROR "Failed to clone pybind11: ${_git_clone_err}")
+  endif()
+
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} -C "${PYBIND11_SRC_DIR}" checkout ${PYBIND11_COMMIT}
+    RESULT_VARIABLE _git_checkout_res
+    OUTPUT_VARIABLE _git_checkout_out
+    ERROR_VARIABLE _git_checkout_err
+  )
+  if(NOT _git_checkout_res EQUAL 0)
+    message(FATAL_ERROR "Failed to checkout pybind11 commit: ${_git_checkout_err}")
+  endif()
+endif()
+
+# 应用补丁（git apply），工作目录为源码目录
+if(EXISTS "${PYBIND11_PATCH}")
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} -C "${PYBIND11_SRC_DIR}" apply "${PYBIND11_PATCH}"
+    RESULT_VARIABLE _git_apply_result
+    OUTPUT_VARIABLE _git_apply_out
+    ERROR_VARIABLE _git_apply_err
+  )
+  if(NOT _git_apply_result EQUAL 0)
+    message(FATAL_ERROR "Failed to apply pybind11 patch: ${_git_apply_err}")
+  endif()
+else()
+  message(WARNING "pybind11 patch not found: ${PYBIND11_PATCH}")
+endif()
+
+# 将本地修改后的源码以子目录方式加入构建（替代 FetchContent_MakeAvailable）
+add_subdirectory(${PYBIND11_SRC_DIR} ${PYBIND11_BUILD_DIR})
+# ...existing code...
 
 set(
   PYTHON_BINDING_SRCS
