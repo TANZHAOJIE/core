@@ -112,7 +112,13 @@ if __name__ == "__main__":
 
     os.chdir(FLAGS.whl_dir)
     print("=== Building wheel")
-    args = ["python3", "-m", "build"]
+    # Use `python` on Windows and `python3` on other platforms
+    if os.name == "nt" or sys.platform.startswith("win"):
+        py_cmd = "python"
+    else:
+        py_cmd = "python3"
+
+    args = [py_cmd, "-m", "build"]
 
     wenv = os.environ.copy()
     wenv["VERSION"] = FLAGS.triton_version

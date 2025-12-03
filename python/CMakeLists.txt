@@ -43,9 +43,16 @@ set(WHEEL_DEPENDS
 
 set(wheel_stamp_file "stamp.whl")
 
+# Use `python` on Windows and `python3` on other platforms
+if(WIN32)
+  set(PYTHON_EXECUTABLE python)
+else()
+  set(PYTHON_EXECUTABLE python3)
+endif()
+
 add_custom_command(
   OUTPUT "${wheel_stamp_file}"
-  COMMAND python3
+  COMMAND ${PYTHON_EXECUTABLE}
   ARGS
     "${CMAKE_CURRENT_SOURCE_DIR}/build_wheel.py"
     --dest-dir "${CMAKE_CURRENT_BINARY_DIR}/generic"
