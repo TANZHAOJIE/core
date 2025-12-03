@@ -45,6 +45,23 @@ FetchContent_Declare(
   GIT_TAG "3e9dfa2866941655c56877882565e7577de6fc7b"
   GIT_SHALLOW ON
 )
+
+# 获取源码到本地目录（不会自动 add_subdirectory）
+FetchContent_Populate(pybind11)
+# 在这里引用你放在工程中的补丁文件（例如：cmake/patches/pybind11-fix.patch）
+set(PYBIND11_PATCH "${CMAKE_SOURCE_DIR}/cmake/patches/pybind11-fix.patch")
+# 应用补丁（使用 git apply），工作目录为被 populate 的源码目录
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} apply "${PYBIND11_PATCH}"
+  WORKING_DIRECTORY ${pybind11_SOURCE_DIR}
+  RESULT_VARIABLE _git_apply_result
+  OUTPUT_VARIABLE _git_apply_out
+  ERROR_VARIABLE _git_apply_err
+)
+if(NOT _git_apply_result EQUAL 0)
+  message(FATAL_ERROR "Failed to apply pybind11 patch: ${_git_apply_err}")
+endif()
+
 FetchContent_MakeAvailable(pybind11)
 set(
   PYTHON_BINDING_SRCS
