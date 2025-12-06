@@ -81,22 +81,23 @@ if(NOT EXISTS "${PYBIND11_SRC_DIR}/.git")
   if(NOT _git_checkout_res EQUAL 0)
     message(FATAL_ERROR "Failed to checkout pybind11 commit: ${_git_checkout_err}")
   endif()
+  # 应用补丁（git apply），工作目录为源码目录
+  if(EXISTS "${PYBIND11_PATCH}")
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} -C "${PYBIND11_SRC_DIR}" apply "${PYBIND11_PATCH}"
+      RESULT_VARIABLE _git_apply_result
+      OUTPUT_VARIABLE _git_apply_out
+      ERROR_VARIABLE _git_apply_err
+    )
+    if(NOT _git_apply_result EQUAL 0)
+      message(FATAL_ERROR "Failed to apply pybind11 patch: ${_git_apply_err}")
+    endif()
+  else()
+    message(WARNING "pybind11 patch not found: ${PYBIND11_PATCH}")
+  endif()
 endif()
 
-# 应用补丁（git apply），工作目录为源码目录
-if(EXISTS "${PYBIND11_PATCH}")
-  execute_process(
-    COMMAND ${GIT_EXECUTABLE} -C "${PYBIND11_SRC_DIR}" apply "${PYBIND11_PATCH}"
-    RESULT_VARIABLE _git_apply_result
-    OUTPUT_VARIABLE _git_apply_out
-    ERROR_VARIABLE _git_apply_err
-  )
-  if(NOT _git_apply_result EQUAL 0)
-    message(FATAL_ERROR "Failed to apply pybind11 patch: ${_git_apply_err}")
-  endif()
-else()
-  message(WARNING "pybind11 patch not found: ${PYBIND11_PATCH}")
-endif()
+
 
 # 将本地修改后的源码以子目录方式加入构建（替代 FetchContent_MakeAvailable）
 add_subdirectory(${PYBIND11_SRC_DIR} ${PYBIND11_BUILD_DIR})
